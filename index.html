@@ -55,7 +55,7 @@
         .login-btn {
             width: 100%;
             padding: 12px;
-            background-color: #ff0000;
+            background-color: #2600ff;
             color: #fff;
             border: none;
             border-radius: 4px;
@@ -687,6 +687,7 @@
     let suppliers = JSON.parse(localStorage.getItem('suppliers')) || [{ id: 1, nome: 'Tech Corp' }];
     let nextCategoryId = categories.length > 0 ? Math.max(...categories.map(c => c.id)) + 1 : 1;
     let nextSupplierId = suppliers.length > 0 ? Math.max(...suppliers.map(s => s.id)) + 1 : 1;
+    let entradaChart, saidaChart, estoqueChart;
 
     // --- Funções de Salvar no LocalStorage ---
     function saveProducts() { localStorage.setItem('products', JSON.stringify(products)); }
@@ -768,26 +769,42 @@
     
     // --- Lógica de Eventos e Formulários ---
     
-    // Login
+    // Login - Bloco único corrigido
     document.getElementById('login-form').addEventListener('submit', function(event) {
         event.preventDefault();
-        Swal.fire({
-            icon: 'success',
-            title: 'Sucesso!',
-            text: 'Login realizado com sucesso!',
-            showConfirmButton: false,
-            timer: 1500
-        }).then(() => {
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('dashboard-screen').style.display = 'flex';
-            // Ativa a aba de produtos como padrão
-            document.querySelector('[data-tab="produtos-tab"]').classList.add('active');
-            document.getElementById('produtos-tab').classList.add('active');
-            renderProductList();
-            renderHistory();
-            renderCategories();
-            renderSuppliers();
-        });
+        
+        const usernameInput = document.getElementById('username').value;
+        const passwordInput = document.getElementById('password').value;
+
+        const correctUsername = "admin";
+        const correctPassword = "1234";
+
+        if (usernameInput === correctUsername && passwordInput === correctPassword) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Sucesso!',
+                text: 'Login realizado com sucesso!',
+                showConfirmButton: false,
+                timer: 1500
+            }).then(() => {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('dashboard-screen').style.display = 'flex';
+                
+                // Ativa a aba de produtos como padrão
+                document.querySelector('[data-tab="produtos-tab"]').classList.add('active');
+                document.getElementById('produtos-tab').classList.add('active');
+                renderProductList();
+                renderHistory();
+                renderCategories();
+                renderSuppliers();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro!',
+                text: 'Usuário ou senha incorretos. Tente novamente.',
+            });
+        }
     });
 
     // Navegação por Abas (agora funciona para a barra superior e inferior)
@@ -849,9 +866,8 @@
             Swal.fire('Entrada Confirmada!', `Foram adicionadas ${quantidade} unidades de ${product.nome}.`, 'success');
             hidePopup('entrada-popup');
         } else {
-            Swal.fire('Erro!', 'Produto não encontrado.', 'error');
+            Swal.fire('Erro!', 'Produto não encontrado. Verifique o nome.', 'error');
         }
-        this.reset();
     });
 
     // Saída de Produto
@@ -860,60 +876,60 @@
         const nome = document.getElementById('produto-saida').value;
         const quantidade = parseInt(document.getElementById('quantidade-saida').value);
         const product = products.find(p => p.nome.toLowerCase() === nome.toLowerCase());
-        if (product && product.quantidade >= quantidade) {
-            product.quantidade -= quantidade;
-            renderProductList();
-            saveProducts();
-            logHistory('Saída', product, quantidade);
-            Swal.fire('Saída Confirmada!', `Foram retiradas ${quantidade} unidades de ${product.nome}.`, 'success');
-            hidePopup('saida-popup');
-        } else if (product && product.quantidade < quantidade) {
-            Swal.fire('Erro!', `Quantidade insuficiente em estoque. Disponível: ${product.quantidade}`, 'error');
+        if (product) {
+            if (product.quantidade >= quantidade) {
+                product.quantidade -= quantidade;
+                renderProductList();
+                saveProducts();
+                logHistory('Saída', product, quantidade);
+                Swal.fire('Saída Confirmada!', `Foram removidas ${quantidade} unidades de ${product.nome}.`, 'success');
+                hidePopup('saida-popup');
+            } else {
+                Swal.fire('Erro!', `Quantidade insuficiente. Apenas ${product.quantidade} unidades de ${product.nome} em estoque.`, 'error');
+            }
         } else {
-            Swal.fire('Erro!', 'Produto não encontrado.', 'error');
+            Swal.fire('Erro!', 'Produto não encontrado. Verifique o nome.', 'error');
         }
-        this.reset();
     });
-
-    // Editar Produto
-    function editProduct(productId) {
-        const productToEdit = products.find(p => p.id === productId);
-        if (productToEdit) {
-            document.getElementById('edit-id').value = productToEdit.id;
-            document.getElementById('edit-id-display').value = productToEdit.id;
-            document.getElementById('edit-codigo-produto').value = productToEdit.codigo;
-            document.getElementById('edit-nome-produto').value = productToEdit.nome;
-            document.getElementById('edit-quantidade-produto').value = productToEdit.quantidade;
-            document.getElementById('edit-estoque-minimo').value = productToEdit.estoqueMinimo;
+    
+    // Edição de Produto
+    function editProduct(id) {
+        const product = products.find(p => p.id === id);
+        if (product) {
+            document.getElementById('edit-id').value = product.id;
+            document.getElementById('edit-id-display').value = product.id;
+            document.getElementById('edit-codigo-produto').value = product.codigo;
+            document.getElementById('edit-nome-produto').value = product.nome;
+            document.getElementById('edit-quantidade-produto').value = product.quantidade;
+            document.getElementById('edit-estoque-minimo').value = product.estoqueMinimo;
             showPopup('edicao-popup');
         }
     }
+
     document.getElementById('form-edicao').addEventListener('submit', function(event) {
         event.preventDefault();
         const id = parseInt(document.getElementById('edit-id').value);
         const nome = document.getElementById('edit-nome-produto').value;
         const quantidade = parseInt(document.getElementById('edit-quantidade-produto').value);
         const estoqueMinimo = parseInt(document.getElementById('edit-estoque-minimo').value);
-        
-        const productIndex = products.findIndex(p => p.id === id);
-        if (productIndex !== -1) {
-            const oldProduct = {...products[productIndex]};
-            products[productIndex].nome = nome;
-            products[productIndex].quantidade = quantidade;
-            products[productIndex].estoqueMinimo = estoqueMinimo;
+
+        const product = products.find(p => p.id === id);
+        if (product) {
+            product.nome = nome;
+            product.quantidade = quantidade;
+            product.estoqueMinimo = estoqueMinimo;
             renderProductList();
             saveProducts();
-            logHistory('Editado', products[productIndex], `De: ${oldProduct.quantidade} para: ${quantidade}`);
-            Swal.fire('Atualizado!', 'Produto atualizado com sucesso!', 'success');
+            Swal.fire('Atualizado!', 'Produto editado com sucesso!', 'success');
             hidePopup('edicao-popup');
         }
     });
 
     // Excluir Produto
-    function deleteProduct(productId) {
+    function deleteProduct(id) {
         Swal.fire({
             title: 'Tem certeza?',
-            text: "Você não poderá reverter esta ação!",
+            text: "Você não poderá reverter isso!",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#3085d6',
@@ -922,32 +938,13 @@
             cancelButtonText: 'Cancelar'
         }).then((result) => {
             if (result.isConfirmed) {
-                const productToDelete = products.find(p => p.id === productId);
-                if (productToDelete) {
-                    logHistory('Excluído', productToDelete, productToDelete.quantidade);
-                    products = products.filter(p => p.id !== productId);
-                    renderProductList();
-                    saveProducts();
-                    Swal.fire('Excluído!', 'O produto foi excluído com sucesso.', 'success');
-                }
+                products = products.filter(p => p.id !== id);
+                renderProductList();
+                saveProducts();
+                Swal.fire('Excluído!', 'O produto foi excluído.', 'success');
             }
         });
     }
-
-    // Busca e Filtro de Produtos
-    document.getElementById('search-product').addEventListener('keyup', function() {
-        const searchTerm = this.value.toLowerCase();
-        const filteredProducts = products.filter(p => 
-            p.nome.toLowerCase().includes(searchTerm) || 
-            p.codigo.toLowerCase().includes(searchTerm)
-        );
-        renderProductList(filteredProducts);
-    });
-    document.getElementById('filter-all').addEventListener('click', () => renderProductList(products));
-    document.getElementById('filter-low-stock').addEventListener('click', () => {
-        const lowStockProducts = products.filter(p => p.quantidade <= p.estoqueMinimo);
-        renderProductList(lowStockProducts);
-    });
 
     // Adicionar Categoria
     document.getElementById('form-adicionar-categoria').addEventListener('submit', function(event) {
@@ -957,7 +954,7 @@
         categories.push(novaCategoria);
         renderCategories();
         saveCategories();
-        Swal.fire('Adicionado!', 'Categoria adicionada com sucesso!', 'success');
+        Swal.fire('Adicionada!', 'Categoria adicionada com sucesso!', 'success');
         this.reset();
     });
 
@@ -973,73 +970,61 @@
         this.reset();
     });
 
-    // Baixar PDF
-    document.getElementById('btn-baixar-pdf').addEventListener('click', () => {
+    // Filtros de busca e estoque mínimo
+    document.getElementById('search-product').addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const filteredProducts = products.filter(p => 
+            p.nome.toLowerCase().includes(searchTerm) || 
+            p.codigo.toLowerCase().includes(searchTerm)
+        );
+        renderProductList(filteredProducts);
+    });
+
+    document.getElementById('filter-low-stock').addEventListener('click', function() {
+        const lowStockProducts = products.filter(p => p.quantidade <= p.estoqueMinimo);
+        renderProductList(lowStockProducts);
+    });
+
+    document.getElementById('filter-all').addEventListener('click', function() {
+        renderProductList(products);
+    });
+
+    // Funções de Pop-up
+    function showPopup(popupId) {
+        document.getElementById(popupId).style.display = 'flex';
+    }
+    function hidePopup(popupId) {
+        document.getElementById(popupId).style.display = 'none';
+    }
+    
+    // Gerar PDF
+    document.getElementById('btn-baixar-pdf').addEventListener('click', function() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        doc.text("Relatório de Estoque - EstoqueSys", 10, 10);
-        let y = 20;
-        if (products.length === 0) {
-            doc.text("Nenhum produto no estoque.", 10, y);
-        } else {
-            products.forEach((product, index) => {
-                doc.text(`ID: ${product.id} - Código: ${product.codigo} - Nome: ${product.nome} - Qtd: ${product.quantidade}`, 10, y);
-                y += 10;
-            });
-        }
-        doc.save('relatorio-estoque.pdf');
-        Swal.fire('PDF Baixado!', 'Seu relatório de estoque foi salvo com sucesso.', 'success');
-        saveProducts();
-    });
-    
-    function showPopup(id) { document.getElementById(id).style.display = 'flex'; }
-    function hidePopup(id) { document.getElementById(id).style.display = 'none'; }
 
-    // Lógica dos Gráficos (Chart.js)
-    document.addEventListener('DOMContentLoaded', function() {
-        renderProductList();
-        renderHistory();
-        renderCategories();
-        renderSuppliers();
-        
-        const entradaCtx = document.getElementById('entradaChart').getContext('2d');
-        const entradaData = {
-            labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai'],
-            datasets: [{
-                label: 'Unidades Entradas',
-                data: [120, 150, 80, 200, 180],
-                backgroundColor: 'rgba(46, 204, 113, 0.7)',
-                borderColor: 'rgba(46, 204, 113, 1)',
-                borderWidth: 1
-            }]
-        };
-        new Chart(entradaCtx, { type: 'bar', data: entradaData, options: { responsive: true, scales: { y: { beginAtZero: true } } } });
-        const saidaCtx = document.getElementById('saidaChart').getContext('2d');
-        const saidaData = {
-            labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai'],
-            datasets: [{
-                label: 'Unidades Saídas',
-                data: [90, 110, 100, 170, 130],
-                backgroundColor: 'rgba(231, 76, 60, 0.7)',
-                borderColor: 'rgba(231, 76, 60, 1)',
-                borderWidth: 1
-            }]
-        };
-        new Chart(saidaCtx, { type: 'bar', data: saidaData, options: { responsive: true, scales: { y: { beginAtZero: true } } } });
-        const estoqueCtx = document.getElementById('estoqueChart').getContext('2d');
-        const estoqueData = {
-            labels: products.map(p => p.nome),
-            datasets: [{
-                label: 'Estoque Atual',
-                data: products.map(p => p.quantidade),
-                backgroundColor: ['rgba(52, 152, 219, 0.8)', 'rgba(241, 196, 15, 0.8)', 'rgba(149, 165, 166, 0.8)'],
-                borderColor: ['rgba(52, 152, 219, 1)', 'rgba(241, 196, 15, 1)', 'rgba(149, 165, 166, 1)'],
-                borderWidth: 1
-            }]
-        };
-        new Chart(estoqueCtx, { type: 'pie', data: estoqueData, options: { responsive: true, plugins: { legend: { position: 'top' } } } });
+        doc.setFontSize(22);
+        doc.text("Relatório de Estoque - EstoqueSys", 20, 20);
+
+        doc.setFontSize(12);
+        let y = 30;
+
+        products.forEach(product => {
+            y += 10;
+            doc.text(`ID: ${product.id}`, 20, y);
+            y += 6;
+            doc.text(`Nome: ${product.nome}`, 20, y);
+            y += 6;
+            doc.text(`Quantidade: ${product.quantidade}`, 20, y);
+            y += 6;
+            doc.text(`Estoque Mínimo: ${product.estoqueMinimo}`, 20, y);
+            y += 8;
+            doc.line(20, y, 180, y);
+        });
+
+        doc.save('relatorio_estoque.pdf');
+        Swal.fire('Pronto!', 'O relatório em PDF foi gerado e baixado.', 'success');
     });
+
 </script>
-
 </body>
 </html>
